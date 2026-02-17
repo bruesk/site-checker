@@ -38,10 +38,16 @@ opacity:0;
 
 h1{
 font-size:42px;
-margin-bottom:60px;
+margin-bottom:15px;
 background:linear-gradient(90deg,#ffffff,#a1a1aa);
 -webkit-background-clip:text;
 -webkit-text-fill-color:transparent;
+}
+
+.subtitle{
+color:#9ca3af;
+margin-bottom:60px;
+font-size:14px;
 }
 
 .card{
@@ -51,6 +57,35 @@ border:1px solid #2a2a2e;
 border-radius:18px;
 padding:30px;
 margin-bottom:30px;
+}
+
+input{
+width:100%;
+padding:14px;
+margin-bottom:15px;
+background:#1f1f23;
+border:1px solid #333339;
+border-radius:12px;
+color:#e4e4e7;
+font-size:14px;
+}
+
+button{
+width:100%;
+padding:14px;
+background:#1f1f23;
+border:1px solid #333339;
+color:#e4e4e7;
+border-radius:12px;
+cursor:pointer;
+transition:.25s ease;
+font-size:14px;
+}
+
+button:hover{
+background:#27272c;
+border-color:#44444f;
+transform:translateY(-2px);
 }
 
 .service-row{
@@ -129,9 +164,17 @@ to{opacity:1;}
 <div class="wrapper">
 
 <h1>Global Service Monitor</h1>
-
-<div class="card" id="servicesContainer">
+<div class="subtitle">
+Live monitoring of major services + manual website lookup.
 </div>
+
+<div class="card">
+<input type="text" id="urlInput" placeholder="https://example.com">
+<button onclick="checkWebsite()">Check Website</button>
+<div id="manualResult" style="margin-top:15px;"></div>
+</div>
+
+<div class="card" id="servicesContainer"></div>
 
 <div class="footer" onclick="goBack()">
 ← Back to Main Site
@@ -149,68 +192,84 @@ const services = [
   { key: "github", label: "GitHub" },
   { key: "openai", label: "OpenAI" },
   { key: "reddit", label: "Reddit" },
-  { key: "twitch", label: "Twitch" },
-  { key: "meta", label: "Meta (Facebook / Instagram / WhatsApp)" }
+  { key: "twitch", label: "Twitch" }
 ];
 
-function createRows() {
-  const container = document.getElementById("servicesContainer");
-  container.innerHTML = "";
+async function checkWebsite(){
+const url=document.getElementById("urlInput").value;
 
-  services.forEach(service => {
-    container.innerHTML += `
-      <div class="service-row" id="row-${service.key}">
-        <div class="status-badge loading" id="status-${service.key}">
-          Loading...
-        </div>
-        <div class="service-name">
-          ${service.label}
-        </div>
-      </div>
-    `;
-  });
+try{
+const res=await fetch(`${backendURL}/check`,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({url})
+});
+
+const data=await res.json();
+let className=data.status==="UP"?"operational":"critical";
+
+document.getElementById("manualResult").innerHTML=
+`<div class="status-badge ${className}">
+${data.status} | ${data.code || ""} | ${data.responseTime || ""} ms
+</div>`;
+}catch{
+document.getElementById("manualResult").innerHTML="Error checking website.";
+}
 }
 
-async function updateService(service) {
-  try {
-    const res = await fetch(`${backendURL}/service-status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ service: service.key })
-    });
+function createRows(){
+const container=document.getElementById("servicesContainer");
+container.innerHTML="";
 
-    const data = await res.json();
-    const badge = document.getElementById(`status-${service.key}`);
-
-    let className = "operational";
-    if (data.status === "Minor Issues") className = "minor";
-    if (data.status === "Major Outage") className = "major";
-    if (data.status === "Critical Outage") className = "critical";
-
-    badge.className = `status-badge ${className}`;
-    badge.textContent = data.status;
-
-  } catch {
-    const badge = document.getElementById(`status-${service.key}`);
-    badge.className = "status-badge critical";
-    badge.textContent = "Error";
-  }
+services.forEach(service=>{
+container.innerHTML+=`
+<div class="service-row">
+<div class="service-name">${service.label}</div>
+<div class="status-badge loading" id="status-${service.key}">
+Loading...
+</div>
+</div>`;
+});
 }
 
-function updateAll() {
-  services.forEach(service => updateService(service));
+async function updateService(service){
+try{
+const res=await fetch(`${backendURL}/service-status`,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({service:service.key})
+});
+
+const data=await res.json();
+const badge=document.getElementById(`status-${service.key}`);
+
+let className="operational";
+if(data.status==="Minor Issues") className="minor";
+if(data.status==="Major Outage") className="major";
+if(data.status==="Critical Outage") className="critical";
+
+badge.className=`status-badge ${className}`;
+badge.textContent=data.status;
+}catch{
+const badge=document.getElementById(`status-${service.key}`);
+badge.className="status-badge critical";
+badge.textContent="Error";
+}
+}
+
+function updateAll(){
+services.forEach(service=>updateService(service));
 }
 
 function goBack(){
-  window.location.href="https://bruesk.github.io";
+window.location.href="https://bruesk.github.io";
 }
 
 createRows();
 updateAll();
-setInterval(updateAll, 20000);
+setInterval(updateAll,20000);
 
-/* ===== Dots Background ===== */
-
+/* Dots Background */
 const canvasDots=document.getElementById("dots");
 const ctxDots=canvasDots.getContext("2d");
 
@@ -233,16 +292,13 @@ const spacing=35;
 
 for(let x=0;x<canvasDots.width;x+=spacing){
 for(let y=0;y<canvasDots.height;y+=spacing){
-
 let dx=mouse.x-x;
 let dy=mouse.y-y;
 let dist=Math.sqrt(dx*dx+dy*dy);
-
 let opacity=0.08;
 if(dist<140){
 opacity=0.08+(1-dist/140)*0.6;
 }
-
 ctxDots.fillStyle=`rgba(160,160,170,${opacity})`;
 ctxDots.beginPath();
 ctxDots.arc(x,y,2,0,Math.PI*2);
