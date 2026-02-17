@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Site Down Detector</title>
+<title>Global Service Monitor</title>
 
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
@@ -28,8 +28,6 @@ left:0;
 z-index:-1;
 }
 
-/* Layout */
-
 .wrapper{
 max-width:900px;
 margin:140px auto 100px auto;
@@ -40,18 +38,10 @@ opacity:0;
 
 h1{
 font-size:42px;
-font-weight:600;
-margin-bottom:10px;
+margin-bottom:60px;
 background:linear-gradient(90deg,#ffffff,#a1a1aa);
 -webkit-background-clip:text;
 -webkit-text-fill-color:transparent;
-}
-
-.subtitle{
-color:#9ca3af;
-margin-bottom:60px;
-font-size:14px;
-letter-spacing:.5px;
 }
 
 .card{
@@ -59,85 +49,67 @@ background:rgba(24,24,27,0.75);
 backdrop-filter:blur(8px);
 border:1px solid #2a2a2e;
 border-radius:18px;
-padding:32px;
+padding:30px;
 margin-bottom:30px;
-transition:.3s ease;
 }
 
-.card:hover{
-transform:translateY(-6px);
-border-color:#3a3a4d;
-box-shadow:0 10px 30px rgba(0,0,0,0.4);
+.service-row{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:14px 0;
+border-bottom:1px solid #2a2a2e;
 }
 
-input{
-width:100%;
-padding:14px;
-margin-bottom:15px;
-background:#1f1f23;
-border:1px solid #333339;
-border-radius:12px;
-color:#e4e4e7;
-font-size:14px;
+.service-row:last-child{
+border-bottom:none;
 }
 
-button.project-btn{
-width:100%;
-padding:14px;
-margin-bottom:12px;
-background:#1f1f23;
-border:1px solid #333339;
-color:#e4e4e7;
-border-radius:12px;
-cursor:pointer;
-transition:.25s ease;
-font-size:14px;
+.service-name{
+font-size:15px;
+color:#a1a1aa;
 }
-
-button.project-btn:hover{
-background:#27272c;
-border-color:#44444f;
-transform:translateY(-2px);
-}
-
-/* Status Badge */
 
 .status-badge{
-display:inline-block;
-padding:8px 14px;
+padding:6px 14px;
 border-radius:999px;
-font-size:13px;
+font-size:12px;
 font-weight:600;
-margin-top:15px;
 }
 
-.status-operational{
+.operational{
 background:#052e16;
 color:#22c55e;
 border:1px solid #14532d;
 }
 
-.status-minor{
+.minor{
 background:#3f2a00;
 color:#facc15;
 border:1px solid #854d0e;
 }
 
-.status-major{
+.major{
 background:#3f1d1d;
 color:#f97316;
 border:1px solid #7c2d12;
 }
 
-.status-critical{
+.critical{
 background:#3f1414;
 color:#ef4444;
 border:1px solid #7f1d1d;
 }
 
+.loading{
+background:#1f2937;
+color:#9ca3af;
+border:1px solid #374151;
+}
+
 .footer{
 text-align:center;
-margin-top:100px;
+margin-top:80px;
 padding:35px 0;
 font-size:13px;
 color:#6b7280;
@@ -156,33 +128,9 @@ to{opacity:1;}
 
 <div class="wrapper">
 
-<h1>Site Down Detector</h1>
-<div class="subtitle">
-Check if a website is reachable and monitor major global services.
-</div>
+<h1>Global Service Monitor</h1>
 
-<div class="card">
-<input type="text" id="urlInput" placeholder="https://example.com">
-<button class="project-btn" onclick="checkWebsite()">Check Website</button>
-<div id="result"></div>
-</div>
-
-<div class="card">
-<h2>Global Services</h2>
-
-<button class="project-btn" onclick="checkService('discord')">Discord</button>
-<button class="project-btn" onclick="checkService('cloudflare')">Cloudflare</button>
-<button class="project-btn" onclick="checkService('github')">GitHub</button>
-<button class="project-btn" onclick="checkService('openai')">OpenAI</button>
-<button class="project-btn" onclick="checkService('twitter')">Twitter (X)</button>
-<button class="project-btn" onclick="checkService('reddit')">Reddit</button>
-<button class="project-btn" onclick="checkService('twitch')">Twitch</button>
-<button class="project-btn" onclick="checkService('steam')">Steam</button>
-<button class="project-btn" onclick="checkService('aws')">Amazon AWS</button>
-<button class="project-btn" onclick="checkService('apple')">Apple</button>
-<button class="project-btn" onclick="checkService('psn')">PlayStation Network</button>
-
-<div id="serviceResult"></div>
+<div class="card" id="servicesContainer">
 </div>
 
 <div class="footer" onclick="goBack()">
@@ -193,60 +141,73 @@ Check if a website is reachable and monitor major global services.
 
 <script>
 
-/* ===== BACKEND URL ===== */
 const backendURL = "https://site-checker-backend-qmhr.onrender.com";
 
-/* ===== WEBSITE CHECK ===== */
-function checkWebsite(){
-const url=document.getElementById("urlInput").value;
+const services = [
+  { key: "discord", label: "Discord" },
+  { key: "cloudflare", label: "Cloudflare" },
+  { key: "github", label: "GitHub" },
+  { key: "openai", label: "OpenAI" },
+  { key: "reddit", label: "Reddit" },
+  { key: "twitch", label: "Twitch" },
+  { key: "meta", label: "Meta (Facebook / Instagram / WhatsApp)" }
+];
 
-fetch(`${backendURL}/check`,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({url})
-})
-.then(res=>res.json())
-.then(data=>{
-document.getElementById("result").innerHTML=`
-<div class="status-badge status-operational">
-${data.status} | ${data.code || ""} | ${data.responseTime || ""} ms
-</div>`;
-})
-.catch(()=>{
-document.getElementById("result").innerHTML="Error checking site.";
-});
+function createRows() {
+  const container = document.getElementById("servicesContainer");
+  container.innerHTML = "";
+
+  services.forEach(service => {
+    container.innerHTML += `
+      <div class="service-row" id="row-${service.key}">
+        <div class="status-badge loading" id="status-${service.key}">
+          Loading...
+        </div>
+        <div class="service-name">
+          ${service.label}
+        </div>
+      </div>
+    `;
+  });
 }
 
-/* ===== SERVICE CHECK ===== */
-function checkService(service){
-fetch(`${backendURL}/service-status`,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({service})
-})
-.then(res=>res.json())
-.then(data=>{
+async function updateService(service) {
+  try {
+    const res = await fetch(`${backendURL}/service-status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ service: service.key })
+    });
 
-let className="status-operational";
+    const data = await res.json();
+    const badge = document.getElementById(`status-${service.key}`);
 
-if(data.status==="Minor Issues") className="status-minor";
-if(data.status==="Major Outage") className="status-major";
-if(data.status==="Critical Outage") className="status-critical";
+    let className = "operational";
+    if (data.status === "Minor Issues") className = "minor";
+    if (data.status === "Major Outage") className = "major";
+    if (data.status === "Critical Outage") className = "critical";
 
-document.getElementById("serviceResult").innerHTML=`
-<div class="status-badge ${className}">
-${service.toUpperCase()} — ${data.status}
-</div>`;
-})
-.catch(()=>{
-document.getElementById("serviceResult").innerHTML="Error fetching service.";
-});
+    badge.className = `status-badge ${className}`;
+    badge.textContent = data.status;
+
+  } catch {
+    const badge = document.getElementById(`status-${service.key}`);
+    badge.className = "status-badge critical";
+    badge.textContent = "Error";
+  }
 }
 
-/* ===== BACK BUTTON ===== */
+function updateAll() {
+  services.forEach(service => updateService(service));
+}
+
 function goBack(){
-window.location.href="https://bruesk.github.io";
+  window.location.href="https://bruesk.github.io";
 }
+
+createRows();
+updateAll();
+setInterval(updateAll, 20000);
 
 /* ===== Dots Background ===== */
 
@@ -283,11 +244,9 @@ opacity=0.08+(1-dist/140)*0.6;
 }
 
 ctxDots.fillStyle=`rgba(160,160,170,${opacity})`;
-
 ctxDots.beginPath();
 ctxDots.arc(x,y,2,0,Math.PI*2);
 ctxDots.fill();
-
 }}
 requestAnimationFrame(drawDots);
 }
