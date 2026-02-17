@@ -29,7 +29,7 @@ z-index:-1;
 }
 
 .wrapper{
-max-width:900px;
+max-width:950px;
 margin:140px auto 100px auto;
 padding:0 20px;
 animation:fadeIn 1.2s ease forwards;
@@ -103,10 +103,17 @@ border-bottom:none;
 .service-name{
 font-size:15px;
 color:#a1a1aa;
+cursor:pointer;
+transition:0.2s ease;
+}
+
+.service-name:hover{
+color:#ffffff;
+text-decoration:underline;
 }
 
 .status-badge{
-padding:6px 14px;
+padding:6px 16px;
 border-radius:999px;
 font-size:12px;
 font-weight:600;
@@ -150,6 +157,11 @@ font-size:13px;
 color:#6b7280;
 border-top:1px solid #2a2a2e;
 cursor:pointer;
+transition:0.2s ease;
+}
+
+.footer:hover{
+color:#ffffff;
 }
 
 @keyframes fadeIn{
@@ -187,16 +199,22 @@ Live monitoring of major services + manual website lookup.
 const backendURL = "https://site-checker-backend-qmhr.onrender.com";
 
 const services = [
-  { key: "discord", label: "Discord" },
-  { key: "cloudflare", label: "Cloudflare" },
-  { key: "github", label: "GitHub" },
-  { key: "openai", label: "OpenAI" },
-  { key: "reddit", label: "Reddit" },
-  { key: "twitch", label: "Twitch" }
+  { key: "discord", label: "Discord", url: "https://discordstatus.com" },
+  { key: "cloudflare", label: "Cloudflare", url: "https://www.cloudflarestatus.com" },
+  { key: "github", label: "GitHub", url: "https://www.githubstatus.com" },
+  { key: "openai", label: "OpenAI", url: "https://status.openai.com" },
+  { key: "reddit", label: "Reddit", url: "https://www.redditstatus.com" },
+  { key: "twitch", label: "Twitch", url: "https://status.twitch.tv" }
 ];
+
+/* =========================
+   MANUAL CHECK
+========================= */
 
 async function checkWebsite(){
 const url=document.getElementById("urlInput").value;
+
+if(!url) return;
 
 try{
 const res=await fetch(`${backendURL}/check`,{
@@ -213,9 +231,14 @@ document.getElementById("manualResult").innerHTML=
 ${data.status} | ${data.code || ""} | ${data.responseTime || ""} ms
 </div>`;
 }catch{
-document.getElementById("manualResult").innerHTML="Error checking website.";
+document.getElementById("manualResult").innerHTML=
+`<div class="status-badge critical">Error checking website</div>`;
 }
 }
+
+/* =========================
+   SERVICE LIST
+========================= */
 
 function createRows(){
 const container=document.getElementById("servicesContainer");
@@ -224,12 +247,19 @@ container.innerHTML="";
 services.forEach(service=>{
 container.innerHTML+=`
 <div class="service-row">
-<div class="service-name">${service.label}</div>
+<div class="service-name"
+     onclick="openStatusPage('${service.url}')">
+${service.label}
+</div>
 <div class="status-badge loading" id="status-${service.key}">
 Loading...
 </div>
 </div>`;
 });
+}
+
+function openStatusPage(url){
+window.open(url,"_blank");
 }
 
 async function updateService(service){
@@ -269,7 +299,10 @@ createRows();
 updateAll();
 setInterval(updateAll,20000);
 
-/* Dots Background */
+/* =========================
+   DOT BACKGROUND
+========================= */
+
 const canvasDots=document.getElementById("dots");
 const ctxDots=canvasDots.getContext("2d");
 
