@@ -207,13 +207,14 @@ const services = [
   { key: "twitch", label: "Twitch", url: "https://status.twitch.tv" }
 ];
 
+let countdownTimer = null;
+
 /* =========================
    MANUAL CHECK
 ========================= */
 
 async function checkWebsite(){
 const url=document.getElementById("urlInput").value;
-
 if(!url) return;
 
 try{
@@ -262,33 +263,68 @@ function openStatusPage(url){
 window.open(url,"_blank");
 }
 
-async function updateService(service){
-try{
-const res=await fetch(`${backendURL}/service-status`,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({service:service.key})
-});
+/* =========================
+   FETCH FROM BACKEND
+========================= */
 
+async function fetchStatusFromBackend(){
+try{
+const res=await fetch(`${backendURL}/all-status`);
 const data=await res.json();
+
+updateStatuses(data.statuses);
+startCountdown(data.nextRefreshIn);
+
+}catch{
+console.log("Backend fetch error");
+}
+}
+
+function updateStatuses(statuses){
+services.forEach(service=>{
 const badge=document.getElementById(`status-${service.key}`);
+const status=statuses[service.key] || "Unknown";
 
 let className="operational";
-if(data.status==="Minor Issues") className="minor";
-if(data.status==="Major Outage") className="major";
-if(data.status==="Critical Outage") className="critical";
+if(status==="Minor Issues") className="minor";
+if(status==="Major Outage") className="major";
+if(status==="Critical Outage") className="critical";
+if(status==="Error") className="critical";
 
 badge.className=`status-badge ${className}`;
-badge.textContent=data.status;
-}catch{
-const badge=document.getElementById(`status-${service.key}`);
-badge.className="status-badge critical";
-badge.textContent="Error";
-}
+badge.textContent=status;
+});
 }
 
-function updateAll(){
-services.forEach(service=>updateService(service));
+/* =========================
+   LIVE COUNTDOWN (BACKEND CONTROLLED)
+========================= */
+
+function startCountdown(ms){
+
+if(countdownTimer) clearInterval(countdownTimer);
+
+let seconds=Math.floor(ms/1000);
+
+updateSubtitle(seconds);
+
+countdownTimer=setInterval(()=>{
+seconds--;
+
+if(seconds<=0){
+clearInterval(countdownTimer);
+fetchStatusFromBackend();
+return;
+}
+
+updateSubtitle(seconds);
+
+},1000);
+}
+
+function updateSubtitle(seconds){
+document.querySelector(".subtitle").innerText =
+`Live monitoring of major services + manual website lookup. Refreshing in: ${seconds}s`;
 }
 
 function goBack(){
@@ -296,11 +332,10 @@ window.location.href="https://bruesk.github.io";
 }
 
 createRows();
-updateAll();
-setInterval(updateAll,20000);
+fetchStatusFromBackend();
 
 /* =========================
-   DOT BACKGROUND
+   DOT BACKGROUND (UNCHANGED)
 ========================= */
 
 const canvasDots=document.getElementById("dots");
@@ -342,5 +377,6 @@ requestAnimationFrame(drawDots);
 drawDots();
 
 </script>
+
 </body>
 </html>
