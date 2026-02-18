@@ -65,77 +65,99 @@ h1 {
 <div id="services"></div>
 
 <script>
-const backendURL = "https://site-checker-backend-qmhr.onrender.com/api/status";
 
-const presetServices = [
-  "Discord",
-  "Cloudflare",
-  "GitHub",
-  "OpenAI",
-  "Reddit",
-  "Twitch",
-  "Amazon Web Services (AWS)",
-  "Google Cloud"
+const backendURL = "https://site-checker-backend-qmhr.onrender.com";
+
+const services = [
+  { key: "discord", label: "Discord", url: "https://discordstatus.com" },
+  { key: "cloudflare", label: "Cloudflare", url: "https://www.cloudflarestatus.com" },
+  { key: "github", label: "GitHub", url: "https://www.githubstatus.com" },
+  { key: "openai", label: "OpenAI", url: "https://status.openai.com" },
+  { key: "reddit", label: "Reddit", url: "https://www.redditstatus.com" },
+  { key: "twitch", label: "Twitch", url: "https://status.twitch.tv" },
+  { key: "aws", label: "Amazon Web Services (AWS)", url: "https://status.aws.amazon.com" },
+  { key: "gcloud", label: "Google Cloud", url: "https://status.cloud.google.com" }
 ];
 
-let countdown = 60;
+let countdown = 0;
 
-function renderServices(data) {
-  const container = document.getElementById("services");
-  container.innerHTML = "";
+/* =========================
+   SERVICE LIST
+========================= */
 
-  presetServices.forEach(name => {
-    const serviceData = data.find(s => s.name === name);
+function createRows(){
+const container=document.getElementById("servicesContainer");
+container.innerHTML="";
 
-    const row = document.createElement("div");
-    row.className = "service";
-
-    const title = document.createElement("div");
-    title.textContent = name;
-
-    const statusBox = document.createElement("div");
-    statusBox.className = "status-box";
-
-    let statusText = "Error";
-    if (serviceData) statusText = serviceData.status;
-
-    statusBox.textContent = statusText;
-
-    if (statusText === "Operational") statusBox.classList.add("operational");
-    else if (statusText === "Minor Issues") statusBox.classList.add("minor");
-    else if (statusText === "Major Outage") statusBox.classList.add("major");
-    else statusBox.classList.add("error");
-
-    row.appendChild(title);
-    row.appendChild(statusBox);
-    container.appendChild(row);
-  });
+services.forEach(service=>{
+container.innerHTML+=`
+<div class="service-row">
+<div class="service-name"
+     onclick="openStatusPage('${service.url}')">
+${service.label}
+</div>
+<div class="status-badge loading" id="status-${service.key}">
+Loading...
+</div>
+</div>`;
+});
 }
 
-async function fetchStatus() {
-  try {
-    const res = await fetch(backendURL);
-    const data = await res.json();
-    renderServices(data);
-  } catch {
-    console.log("Fetch failed");
-  }
+function openStatusPage(url){
+window.open(url,"_blank");
 }
 
-function startCountdown() {
-  setInterval(() => {
-    countdown--;
-    if (countdown <= 0) {
-      fetchStatus();
-      countdown = 60;
-    }
-    document.getElementById("countdown").textContent =
-      "Refreshing in: " + countdown + "s";
-  }, 1000);
+async function updateAll(){
+try{
+const res=await fetch(`${backendURL}/api/status`);
+const data=await res.json();
+
+countdown = data.nextRefreshIn;
+
+services.forEach(service=>{
+const badge=document.getElementById(`status-${service.key}`);
+const serviceData=data.services.find(s=>s.key===service.key);
+
+if(!serviceData){
+badge.className="status-badge critical";
+badge.textContent="Error";
+return;
 }
 
-fetchStatus();
+let className="operational";
+if(serviceData.status==="Minor Issues") className="minor";
+if(serviceData.status==="Major Outage") className="major";
+if(serviceData.status==="Critical Outage") className="critical";
+if(serviceData.status==="Error") className="critical";
+
+badge.className=`status-badge ${className}`;
+badge.textContent=serviceData.status;
+});
+
+}catch{
+console.log("Fetch failed");
+}
+}
+
+function startCountdown(){
+setInterval(()=>{
+if(countdown>0){
+countdown--;
+}
+document.querySelector(".subtitle").innerText =
+`Live monitoring of major services + manual website lookup. | Refreshing in ${countdown}s`;
+},1000);
+}
+
+function goBack(){
+window.location.href="https://bruesk.github.io";
+}
+
+createRows();
+updateAll();
 startCountdown();
+setInterval(updateAll,10000); // poll backend every 10s for countdown sync
+
 </script>
 
 </body>
