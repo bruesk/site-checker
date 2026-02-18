@@ -1,358 +1,142 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global Service Monitor</title>
-
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-
+<title>Service Status Monitor</title>
 <style>
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:"JetBrains Mono",monospace;
+body {
+  background: #0f172a;
+  color: white;
+  font-family: Arial, sans-serif;
+  padding: 40px;
 }
 
-body{
-background:#0e0e11;
-color:#e4e4e7;
-overflow-x:hidden;
+h1 {
+  margin-bottom: 10px;
 }
 
-#dots{
-position:fixed;
-top:0;
-left:0;
-z-index:-1;
+#countdown {
+  margin-bottom: 30px;
+  font-size: 18px;
+  opacity: 0.8;
 }
 
-.wrapper{
-max-width:950px;
-margin:140px auto 100px auto;
-padding:0 20px;
-animation:fadeIn 1.2s ease forwards;
-opacity:0;
+.service {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1e293b;
+  padding: 15px 20px;
+  margin-bottom: 12px;
+  border-radius: 12px;
 }
 
-h1{
-font-size:42px;
-margin-bottom:15px;
-background:linear-gradient(90deg,#ffffff,#a1a1aa);
--webkit-background-clip:text;
--webkit-text-fill-color:transparent;
+.status-box {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: bold;
+  min-width: 140px;
+  text-align: center;
 }
 
-.subtitle{
-color:#9ca3af;
-margin-bottom:60px;
-font-size:14px;
+.operational {
+  background: #16a34a;
 }
 
-.card{
-background:rgba(24,24,27,0.75);
-backdrop-filter:blur(8px);
-border:1px solid #2a2a2e;
-border-radius:18px;
-padding:30px;
-margin-bottom:30px;
+.minor {
+  background: #eab308;
+  color: black;
 }
 
-input{
-width:100%;
-padding:14px;
-margin-bottom:15px;
-background:#1f1f23;
-border:1px solid #333339;
-border-radius:12px;
-color:#e4e4e7;
-font-size:14px;
+.major {
+  background: #dc2626;
 }
 
-button{
-width:100%;
-padding:14px;
-background:#1f1f23;
-border:1px solid #333339;
-color:#e4e4e7;
-border-radius:12px;
-cursor:pointer;
-transition:.25s ease;
-font-size:14px;
-}
-
-button:hover{
-background:#27272c;
-border-color:#44444f;
-transform:translateY(-2px);
-}
-
-.service-row{
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:14px 0;
-border-bottom:1px solid #2a2a2e;
-}
-
-.service-row:last-child{
-border-bottom:none;
-}
-
-.service-name{
-font-size:15px;
-color:#a1a1aa;
-cursor:pointer;
-transition:0.2s ease;
-}
-
-.service-name:hover{
-color:#ffffff;
-text-decoration:underline;
-}
-
-.status-badge{
-padding:6px 16px;
-border-radius:999px;
-font-size:12px;
-font-weight:600;
-}
-
-.operational{
-background:#052e16;
-color:#22c55e;
-border:1px solid #14532d;
-}
-
-.minor{
-background:#3f2a00;
-color:#facc15;
-border:1px solid #854d0e;
-}
-
-.major{
-background:#3f1d1d;
-color:#f97316;
-border:1px solid #7c2d12;
-}
-
-.critical{
-background:#3f1414;
-color:#ef4444;
-border:1px solid #7f1d1d;
-}
-
-.loading{
-background:#1f2937;
-color:#9ca3af;
-border:1px solid #374151;
-}
-
-.footer{
-text-align:center;
-margin-top:80px;
-padding:35px 0;
-font-size:13px;
-color:#6b7280;
-border-top:1px solid #2a2a2e;
-cursor:pointer;
-transition:0.2s ease;
-}
-
-.footer:hover{
-color:#ffffff;
-}
-
-@keyframes fadeIn{
-to{opacity:1;}
+.error {
+  background: #6b7280;
 }
 </style>
 </head>
 <body>
 
-<canvas id="dots"></canvas>
-
-<div class="wrapper">
-
 <h1>Global Service Monitor</h1>
-<div class="subtitle">
-Live monitoring of major services + manual website lookup.
-</div>
+<div id="countdown">Refreshing in: 60s</div>
 
-<div class="card">
-<input type="text" id="urlInput" placeholder="https://example.com">
-<button onclick="checkWebsite()">Check Website</button>
-<div style="
-  margin-top:12px;
-  padding:11px 15px;
-  background:#3f2a00;
-  border:1px solid #854d0e;
-  border-radius:12px;
-  color:#facc15;
-  font-size:12px;
-  line-height:1.7;
-">
-  ⚠ <strong>Note:</strong> Make sure you include <code style="background:rgba(0,0,0,0.25);padding:1px 6px;border-radius:5px;">https://</code> — instead of <code style="background:rgba(0,0,0,0.25);padding:1px 6px;border-radius:5px;">youtube.com</code>, try <code style="background:rgba(0,0,0,0.25);padding:1px 6px;border-radius:5px;">https://youtube.com</code>.
-</div>
-<div id="manualResult" style="margin-top:15px;"></div>
-</div>
-
-<div class="card" id="servicesContainer"></div>
-
-<div class="footer" onclick="goBack()">
-← Back to Main Site
-</div>
-
-</div>
+<div id="services"></div>
 
 <script>
+const backendURL = "https://site-checker-backend-qmhr.onrender.com/api/status";
 
-const backendURL = "https://site-checker-backend-qmhr.onrender.com";
-
-const services = [
-  { key: "discord", label: "Discord", url: "https://discordstatus.com" },
-  { key: "cloudflare", label: "Cloudflare", url: "https://www.cloudflarestatus.com" },
-  { key: "github", label: "GitHub", url: "https://www.githubstatus.com" },
-  { key: "openai", label: "OpenAI", url: "https://status.openai.com" },
-  { key: "reddit", label: "Reddit", url: "https://www.redditstatus.com" },
-  { key: "twitch", label: "Twitch", url: "https://status.twitch.tv" }
+const presetServices = [
+  "Discord",
+  "Cloudflare",
+  "GitHub",
+  "OpenAI",
+  "Reddit",
+  "Twitch",
+  "Amazon Web Services (AWS)",
+  "Google Cloud"
 ];
 
-/* =========================
-   MANUAL CHECK
-========================= */
+let countdown = 60;
 
-async function checkWebsite(){
-const url=document.getElementById("urlInput").value;
+function renderServices(data) {
+  const container = document.getElementById("services");
+  container.innerHTML = "";
 
-if(!url) return;
+  presetServices.forEach(name => {
+    const serviceData = data.find(s => s.name === name);
 
-try{
-const res=await fetch(`${backendURL}/check`,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({url})
-});
+    const row = document.createElement("div");
+    row.className = "service";
 
-const data=await res.json();
-let className=data.status==="UP"?"operational":"critical";
+    const title = document.createElement("div");
+    title.textContent = name;
 
-document.getElementById("manualResult").innerHTML=
-`<div class="status-badge ${className}">
-${data.status} | ${data.code || ""} | ${data.responseTime || ""} ms
-</div>`;
-}catch{
-document.getElementById("manualResult").innerHTML=
-`<div class="status-badge critical">Error checking website</div>`;
-}
-}
+    const statusBox = document.createElement("div");
+    statusBox.className = "status-box";
 
-/* =========================
-   SERVICE LIST
-========================= */
+    let statusText = "Error";
+    if (serviceData) statusText = serviceData.status;
 
-function createRows(){
-const container=document.getElementById("servicesContainer");
-container.innerHTML="";
+    statusBox.textContent = statusText;
 
-services.forEach(service=>{
-container.innerHTML+=`
-<div class="service-row">
-<div class="service-name"
-     onclick="openStatusPage('${service.url}')">
-${service.label}
-</div>
-<div class="status-badge loading" id="status-${service.key}">
-Loading...
-</div>
-</div>`;
-});
+    if (statusText === "Operational") statusBox.classList.add("operational");
+    else if (statusText === "Minor Issues") statusBox.classList.add("minor");
+    else if (statusText === "Major Outage") statusBox.classList.add("major");
+    else statusBox.classList.add("error");
+
+    row.appendChild(title);
+    row.appendChild(statusBox);
+    container.appendChild(row);
+  });
 }
 
-function openStatusPage(url){
-window.open(url,"_blank");
+async function fetchStatus() {
+  try {
+    const res = await fetch(backendURL);
+    const data = await res.json();
+    renderServices(data);
+  } catch {
+    console.log("Fetch failed");
+  }
 }
 
-async function updateService(service){
-try{
-const res=await fetch(`${backendURL}/service-status`,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({service:service.key})
-});
-
-const data=await res.json();
-const badge=document.getElementById(`status-${service.key}`);
-
-let className="operational";
-if(data.status==="Minor Issues") className="minor";
-if(data.status==="Major Outage") className="major";
-if(data.status==="Critical Outage") className="critical";
-
-badge.className=`status-badge ${className}`;
-badge.textContent=data.status;
-}catch{
-const badge=document.getElementById(`status-${service.key}`);
-badge.className="status-badge critical";
-badge.textContent="Error";
-}
+function startCountdown() {
+  setInterval(() => {
+    countdown--;
+    if (countdown <= 0) {
+      fetchStatus();
+      countdown = 60;
+    }
+    document.getElementById("countdown").textContent =
+      "Refreshing in: " + countdown + "s";
+  }, 1000);
 }
 
-function updateAll(){
-services.forEach(service=>updateService(service));
-}
-
-function goBack(){
-window.location.href="https://bruesk.github.io";
-}
-
-createRows();
-updateAll();
-setInterval(updateAll,20000);
-
-/* =========================
-   DOT BACKGROUND
-========================= */
-
-const canvasDots=document.getElementById("dots");
-const ctxDots=canvasDots.getContext("2d");
-
-function resizeDots(){
-canvasDots.width=window.innerWidth;
-canvasDots.height=window.innerHeight;
-}
-resizeDots();
-window.addEventListener("resize",resizeDots);
-
-let mouse={x:0,y:0};
-window.addEventListener("mousemove",e=>{
-mouse.x=e.clientX;
-mouse.y=e.clientY;
-});
-
-function drawDots(){
-ctxDots.clearRect(0,0,canvasDots.width,canvasDots.height);
-const spacing=35;
-
-for(let x=0;x<canvasDots.width;x+=spacing){
-for(let y=0;y<canvasDots.height;y+=spacing){
-let dx=mouse.x-x;
-let dy=mouse.y-y;
-let dist=Math.sqrt(dx*dx+dy*dy);
-let opacity=0.08;
-if(dist<140){
-opacity=0.08+(1-dist/140)*0.6;
-}
-ctxDots.fillStyle=`rgba(160,160,170,${opacity})`;
-ctxDots.beginPath();
-ctxDots.arc(x,y,2,0,Math.PI*2);
-ctxDots.fill();
-}}
-requestAnimationFrame(drawDots);
-}
-drawDots();
-
+fetchStatus();
+startCountdown();
 </script>
+
 </body>
 </html>
